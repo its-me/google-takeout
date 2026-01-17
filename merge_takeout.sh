@@ -117,7 +117,7 @@ print_info "Merged $FILE_COUNT files into $MERGED_DIR"
 ARCHIVE_PATH="$PWD/${OUTPUT_NAME}.tar.xz"
 print_info "Creating xz-compressed archive: $ARCHIVE_PATH"
 print_info "Using xz compression: -9e (extreme) -T0 (all CPU cores)"
-tar -cf - -C "$WORK_DIR" "merged" | xz -9e -T0 > "$ARCHIVE_PATH" || {
+tar -cf - -C "$MERGED_DIR" . | xz -9e -T0 > "$ARCHIVE_PATH" || {
     print_error "Failed to create archive"
     exit 1
 }
