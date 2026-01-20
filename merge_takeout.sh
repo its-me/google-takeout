@@ -33,7 +33,7 @@ if ! command -v xz &> /dev/null; then
     exit 1
 fi
 
-OUTPUT_BASE="${1:-takeout}"
+OUTPUT_BASE="${1:-Takeout}"
 
 WORK_DIR="./tmp"
 EXTRACT_DIR="$WORK_DIR/extract"
