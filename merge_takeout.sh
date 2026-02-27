@@ -35,7 +35,7 @@ fi
 
 OUTPUT_BASE="${1:-Takeout}"
 
-WORK_DIR="./tmp"
+WORK_DIR="./Takeout"
 EXTRACT_DIR="$WORK_DIR/extract"
 MERGED_DIR="$WORK_DIR/merged"
 
