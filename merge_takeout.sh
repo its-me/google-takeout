@@ -35,12 +35,11 @@ fi
 
 OUTPUT_BASE="${1:-Takeout}"
 
-WORK_DIR="./Takeout"
-EXTRACT_DIR="$WORK_DIR/extract"
-MERGED_DIR="$WORK_DIR/merged"
+MERGED_DIR="./Takeout"
+EXTRACT_DIR="./tmp"
 
 # Create working directory in current folder
-print_info "Creating working directory: $WORK_DIR"
+print_info "Creating working directory: $MERGED_DIR"
 mkdir -p "$MERGED_DIR"
 
 # Find all takeout archives in current directory
@@ -127,7 +126,7 @@ print_info "Archive created successfully (size: $ARCHIVE_SIZE)"
 
 # Clean up working directory
 print_info "Cleaning up temporary files"
-rm -rf "$WORK_DIR"
+rm -rf "$EXTRACT_DIR"
 
 # Final summary
 echo ""
@@ -136,6 +135,3 @@ print_info "Merged archives: ${#ARCHIVES[@]}"
 print_info "Total files: $FILE_COUNT"
 print_info "Takeout date: $TAKEOUT_DATE"
 print_info "Output file: $ARCHIVE_PATH"
-echo ""
-print_info "To extract:"
-print_info "  tar -xJf $ARCHIVE_PATH"
