@@ -2,7 +2,7 @@
 
 # Script to merge Google Takeout archives and create a single compressed archive
 # Usage: Run this script in the folder containing your Google Takeout archives
-#        ./merge_takeout.sh [output_name]
+#        ./takeout-merge [output_name]
 
 set -e  # Exit on error
 set -o pipefail  # Exit on pipe failures
