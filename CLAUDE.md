@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This repository contains two Bash scripts for managing Google Takeout archives:
+This repository contains three Bash scripts for managing Google Takeout archives:
 
 - **`takeout-merge`** — merges multiple Google Takeout archives into a single compressed `.tar.xz` file
 - **`takeout`** — full backup/restore pipeline: merge, encrypt (age), upload to Backblaze B2 and Google Drive, verify checksums
+- **`takeout-retention`** — enforces retention policy on both remotes: keeps the 10 most recent backups plus any backup created on the 1st or 16th of any month
 
 ## Usage
 
@@ -33,6 +34,14 @@ Output: `<output_name>-<YYYY-MM-DD>.tar.xz` in the current directory
 ./takeout r <encrypted_file.tar.xz.age>
 ```
 
+### takeout-retention
+
+```bash
+takeout-retention [--dry-run|-n] [b2|drive]
+```
+
+Omit the storage argument to run on both remotes. Only the env vars for the selected remote are required.
+
 ## Dependencies
 
 ### takeout-merge
@@ -50,16 +59,19 @@ All of the above, plus:
 - `atool` (for restore extraction)
 - 1Password CLI (`op`) — used by `rage` wrapper to fetch the age key
 
-## Environment Variables (takeout b)
+### takeout-retention
+- `rclone`
 
-| Variable | Description |
-|---|---|
-| `TAKEOUT_AGE_KEY` | Name of the age key file (or 1Password document name) |
-| `TAKEOUT_RCLONE_B2_REMOTE_NAME` | rclone remote name for Backblaze B2 |
-| `TAKEOUT_RCLONE_B2_REMOTE_DIR` | Directory/bucket path on the B2 remote |
-| `TAKEOUT_RCLONE_DRIVE_REMOTE_NAME` | rclone remote name for Google Drive |
-| `TAKEOUT_RCLONE_DRIVE_REMOTE_DIR` | Directory on the Google Drive remote |
-| `ONEPASSWORD_SERVICE_ACCOUNT_TOKEN` | 1Password service account token (passed to `rage`) |
+## Environment Variables
+
+| Variable | Used by | Description |
+|---|---|---|
+| `TAKEOUT_AGE_KEY` | `takeout` | Name of the age key file (or 1Password document name) |
+| `TAKEOUT_RCLONE_B2_REMOTE_NAME` | `takeout`, `takeout-retention` | rclone remote name for Backblaze B2 |
+| `TAKEOUT_RCLONE_B2_REMOTE_DIR` | `takeout`, `takeout-retention` | Directory/bucket path on the B2 remote |
+| `TAKEOUT_RCLONE_DRIVE_REMOTE_NAME` | `takeout`, `takeout-retention` | rclone remote name for Google Drive |
+| `TAKEOUT_RCLONE_DRIVE_REMOTE_DIR` | `takeout`, `takeout-retention` | Directory on the Google Drive remote |
+| `ONEPASSWORD_SERVICE_ACCOUNT_TOKEN` | `takeout` | 1Password service account token (passed to `rage`) |
 
 ## Script Behavior
 
@@ -80,3 +92,10 @@ All of the above, plus:
 ### takeout r
 1. Decrypts the `.age` file with `rage`
 2. Extracts the resulting archive with `atool`
+
+### takeout-retention
+1. Lists all `*.tar.xz.age` files on the selected remote(s), sorted newest-first by filename date
+2. Keeps a file if it meets either rule:
+   - It is among the 10 most recent backups (1st/16th files count toward the 10)
+   - Its filename date falls on the 1st or 16th of any month
+3. Deletes everything else; `--dry-run` prints what would be deleted without acting
