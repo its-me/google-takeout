@@ -11,7 +11,7 @@ shift
 
 TAKEOUT_AGE_KEY="${TAKEOUT_AGE_KEY:-}"
 TAKEOUT_RCLONE_B2_REMOTE_NAME="${TAKEOUT_RCLONE_B2_REMOTE_NAME:-}"
-TAKEOUT_RCLONE_B2_REMOTE_DIR="${TAKEOUT_RCLONE_B2_REMOTE_DIR:-}"
+TAKEOUT_RCLONE_B2_REMOTE_BUCKET="${TAKEOUT_RCLONE_B2_REMOTE_BUCKET:-}"
 TAKEOUT_RCLONE_DRIVE_REMOTE_NAME="${TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:-}"
 TAKEOUT_RCLONE_DRIVE_REMOTE_DIR="${TAKEOUT_RCLONE_DRIVE_REMOTE_DIR:-}"
 
@@ -19,7 +19,7 @@ case "$subcmd" in
   b)
     [[ -z "$TAKEOUT_AGE_KEY"                 ]] && { echo "Error: TAKEOUT_AGE_KEY is not set" >&2;                 exit 1; }
     [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_NAME"   ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_NAME is not set" >&2;   exit 1; }
-    [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_DIR"    ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_DIR is not set" >&2;    exit 1; }
+    [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_BUCKET"    ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_BUCKET is not set" >&2;    exit 1; }
     [[ -z "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME" ]] && { echo "Error: TAKEOUT_RCLONE_DRIVE_REMOTE_NAME is not set" >&2; exit 1; }
     [[ -z "$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR"  ]] && { echo "Error: TAKEOUT_RCLONE_DRIVE_REMOTE_DIR is not set" >&2;  exit 1; }
 
@@ -48,7 +48,7 @@ case "$subcmd" in
     # ── 4. Upload to Backblaze B2 & Google Drive in parallel ──────────────
     echo "[INFO] Uploading to Backblaze B2 and Google Drive in parallel..."
 
-    rclone copy "$encrypted" "$TAKEOUT_RCLONE_B2_REMOTE_NAME:$TAKEOUT_RCLONE_B2_REMOTE_DIR/" --progress &
+    rclone copy "$encrypted" "$TAKEOUT_RCLONE_B2_REMOTE_NAME:$TAKEOUT_RCLONE_B2_REMOTE_BUCKET/" --progress &
     b2_pid=$!
     rclone copy "$encrypted" "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR/" --progress &
     gdrive_pid=$!
@@ -57,7 +57,7 @@ case "$subcmd" in
 
     # ── 5. Verify checksums ───────────────────────────────────────────────
     echo "[INFO] Verifying checksums on remotes..."
-    b2_sha1=$(rclone    hashsum sha1 "$TAKEOUT_RCLONE_B2_REMOTE_NAME:$TAKEOUT_RCLONE_B2_REMOTE_DIR/$encrypted"       | awk '{print $1}')
+    b2_sha1=$(rclone    hashsum sha1 "$TAKEOUT_RCLONE_B2_REMOTE_NAME:$TAKEOUT_RCLONE_B2_REMOTE_BUCKET/$encrypted"       | awk '{print $1}')
     gdrive_sha1=$(rclone hashsum sha1 "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR/$encrypted" | awk '{print $1}')
 
     echo "[INFO] Local SHA-1:        $local_sha1"

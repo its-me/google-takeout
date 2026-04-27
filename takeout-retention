@@ -13,14 +13,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 TAKEOUT_RCLONE_B2_REMOTE_NAME="${TAKEOUT_RCLONE_B2_REMOTE_NAME:-}"
-TAKEOUT_RCLONE_B2_REMOTE_DIR="${TAKEOUT_RCLONE_B2_REMOTE_DIR:-}"
+TAKEOUT_RCLONE_B2_REMOTE_BUCKET="${TAKEOUT_RCLONE_B2_REMOTE_BUCKET:-}"
 TAKEOUT_RCLONE_DRIVE_REMOTE_NAME="${TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:-}"
 TAKEOUT_RCLONE_DRIVE_REMOTE_DIR="${TAKEOUT_RCLONE_DRIVE_REMOTE_DIR:-}"
 TAKEOUT_RETENTION_KEEP_LAST="${TAKEOUT_RETENTION_KEEP_LAST:-10}"
 
 if [[ "$TARGET" == "b2" || "$TARGET" == "both" ]]; then
   [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_NAME" ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_NAME is not set" >&2; exit 1; }
-  [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_DIR"  ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_DIR is not set" >&2;  exit 1; }
+  [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_BUCKET"  ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_BUCKET is not set" >&2;  exit 1; }
 fi
 if [[ "$TARGET" == "drive" || "$TARGET" == "both" ]]; then
   [[ -z "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME" ]] && { echo "Error: TAKEOUT_RCLONE_DRIVE_REMOTE_NAME is not set" >&2; exit 1; }
@@ -89,7 +89,7 @@ $DRY_RUN && echo "[INFO] Dry run — no files will be deleted"
 
 if [[ "$TARGET" == "b2" || "$TARGET" == "both" ]]; then
   echo ""
-  apply_retention "$TAKEOUT_RCLONE_B2_REMOTE_NAME" "$TAKEOUT_RCLONE_B2_REMOTE_DIR"
+  apply_retention "$TAKEOUT_RCLONE_B2_REMOTE_NAME" "$TAKEOUT_RCLONE_B2_REMOTE_BUCKET"
 fi
 if [[ "$TARGET" == "drive" || "$TARGET" == "both" ]]; then
   echo ""

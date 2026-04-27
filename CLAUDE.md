@@ -69,7 +69,7 @@ All of the above, plus:
 | `TAKEOUT_AGE_KEY` | `takeout` | Name of the age key file (or 1Password document name) |
 | `TAKEOUT_RETENTION_KEEP_LAST` | `takeout-retention` | Number of most recent backups to always keep (default: 10) |
 | `TAKEOUT_RCLONE_B2_REMOTE_NAME` | `takeout`, `takeout-retention` | rclone remote name for Backblaze B2 |
-| `TAKEOUT_RCLONE_B2_REMOTE_DIR` | `takeout`, `takeout-retention` | Directory/bucket path on the B2 remote |
+| `TAKEOUT_RCLONE_B2_REMOTE_BUCKET` | `takeout`, `takeout-retention` | B2 bucket name |
 | `TAKEOUT_RCLONE_DRIVE_REMOTE_NAME` | `takeout`, `takeout-retention` | rclone remote name for Google Drive |
 | `TAKEOUT_RCLONE_DRIVE_REMOTE_DIR` | `takeout`, `takeout-retention` | Directory on the Google Drive remote |
 | `ONEPASSWORD_SERVICE_ACCOUNT_TOKEN` | `takeout` | 1Password service account token (passed to `rage`) |
