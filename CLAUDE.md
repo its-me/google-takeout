@@ -79,9 +79,9 @@ All of the above, plus:
 ### takeout-merge
 1. Finds all matching archives in the current directory (sorted)
 2. Extracts the date from the first archive's filename (format: `takeout-YYYYMMDD-*`)
-3. Extracts each archive into a temp dir (`./tmp`), then rsyncs into `./Takeout/`
+3. Extracts each archive into a temp dir (`./tmp`), then rsyncs into `./<output_name>-<YYYY-MM-DD>/`
 4. Creates a `.tar.xz` with maximum compression (`xz -9e -T0`) at lowest process priority (`nice -n 19`)
-5. Leaves the merged `./Takeout/` directory in place after completion; cleans up only the temp extraction dir
+5. Leaves the merged `./<output_name>-<YYYY-MM-DD>/` directory in place after completion; cleans up only the temp extraction dir
 
 ### takeout b
 1. Runs `takeout-merge` to produce a `.tar.xz` archive

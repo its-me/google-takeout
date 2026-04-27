@@ -35,12 +35,7 @@ fi
 
 OUTPUT_BASE="${1:-Takeout}"
 
-MERGED_DIR="./Takeout"
 EXTRACT_DIR="./tmp"
-
-# Create working directory in current folder
-print_info "Creating working directory: $MERGED_DIR"
-mkdir -p "$MERGED_DIR"
 
 # Find all takeout archives in current directory
 print_info "Searching for Google Takeout archives in current directory"
@@ -69,7 +64,12 @@ else
 fi
 
 OUTPUT_NAME="${OUTPUT_BASE}-${TAKEOUT_DATE}"
+MERGED_DIR="./${OUTPUT_NAME}"
 print_info "Output name will be: $OUTPUT_NAME"
+
+# Create working directory in current folder
+print_info "Creating working directory: $MERGED_DIR"
+mkdir -p "$MERGED_DIR"
 
 # Extract each archive
 for archive in "${ARCHIVES[@]}"; do
