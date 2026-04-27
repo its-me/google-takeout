@@ -16,6 +16,7 @@ TAKEOUT_RCLONE_B2_REMOTE_NAME="${TAKEOUT_RCLONE_B2_REMOTE_NAME:-}"
 TAKEOUT_RCLONE_B2_REMOTE_DIR="${TAKEOUT_RCLONE_B2_REMOTE_DIR:-}"
 TAKEOUT_RCLONE_DRIVE_REMOTE_NAME="${TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:-}"
 TAKEOUT_RCLONE_DRIVE_REMOTE_DIR="${TAKEOUT_RCLONE_DRIVE_REMOTE_DIR:-}"
+TAKEOUT_RETENTION_KEEP_LAST="${TAKEOUT_RETENTION_KEEP_LAST:-10}"
 
 if [[ "$TARGET" == "b2" || "$TARGET" == "both" ]]; then
   [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_NAME" ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_NAME is not set" >&2; exit 1; }
@@ -26,11 +27,9 @@ if [[ "$TARGET" == "drive" || "$TARGET" == "both" ]]; then
   [[ -z "$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR"  ]] && { echo "Error: TAKEOUT_RCLONE_DRIVE_REMOTE_DIR is not set" >&2;  exit 1; }
 fi
 
-KEEP_LAST=10
-
 # Retention rules:
 #   1. Always keep files dated on the 1st or 16th of any month
-#   2. Always keep the most recent $KEEP_LAST files (rules 1+2 overlap — 1st/16th count toward the 10)
+#   2. Always keep the most recent $TAKEOUT_RETENTION_KEEP_LAST files (rules 1+2 overlap — 1st/16th count toward the 10)
 apply_retention() {
   local remote_name="$1"
   local remote_dir="${2%/}"
@@ -62,7 +61,7 @@ apply_retention() {
     keep=false
     reasons=()
 
-    [[ $rank -le $KEEP_LAST ]] && { keep=true; reasons+=("top $KEEP_LAST"); }
+    [[ $rank -le $TAKEOUT_RETENTION_KEEP_LAST ]] && { keep=true; reasons+=("top $TAKEOUT_RETENTION_KEEP_LAST"); }
     [[ "$day" == "01" || "$day" == "16" ]] && { keep=true; reasons+=("day-of-month $day"); }
 
     if $keep; then
