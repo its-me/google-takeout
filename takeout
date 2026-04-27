@@ -10,18 +10,18 @@ subcmd=$1
 shift
 
 TAKEOUT_AGE_KEY="${TAKEOUT_AGE_KEY:-}"
-TAKEOUT_B2_CLIENT="${TAKEOUT_B2_CLIENT:-}"
-TAKEOUT_B2_BUCKET="${TAKEOUT_B2_BUCKET:-}"
-TAKEOUT_RCLONE_REMOTE_NAME="${TAKEOUT_RCLONE_REMOTE_NAME:-}"
-TAKEOUT_RCLONE_REMOTE_DIR="${TAKEOUT_RCLONE_REMOTE_DIR:-}"
+TAKEOUT_RCLONE_B2_REMOTE_NAME="${TAKEOUT_RCLONE_B2_REMOTE_NAME:-}"
+TAKEOUT_RCLONE_B2_REMOTE_DIR="${TAKEOUT_RCLONE_B2_REMOTE_DIR:-}"
+TAKEOUT_RCLONE_DRIVE_REMOTE_NAME="${TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:-}"
+TAKEOUT_RCLONE_DRIVE_REMOTE_DIR="${TAKEOUT_RCLONE_DRIVE_REMOTE_DIR:-}"
 
 case "$subcmd" in
   b)
-    [[ -z "$TAKEOUT_AGE_KEY"            ]] && { echo "Error: TAKEOUT_AGE_KEY is not set" >&2;            exit 1; }
-    [[ -z "$TAKEOUT_B2_CLIENT"          ]] && { echo "Error: TAKEOUT_B2_CLIENT is not set" >&2;          exit 1; }
-    [[ -z "$TAKEOUT_B2_BUCKET"          ]] && { echo "Error: TAKEOUT_B2_BUCKET is not set" >&2;          exit 1; }
-    [[ -z "$TAKEOUT_RCLONE_REMOTE_NAME" ]] && { echo "Error: TAKEOUT_RCLONE_REMOTE_NAME is not set" >&2; exit 1; }
-    [[ -z "$TAKEOUT_RCLONE_REMOTE_DIR"  ]] && { echo "Error: TAKEOUT_RCLONE_REMOTE_DIR is not set" >&2;  exit 1; }
+    [[ -z "$TAKEOUT_AGE_KEY"                 ]] && { echo "Error: TAKEOUT_AGE_KEY is not set" >&2;                 exit 1; }
+    [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_NAME"   ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_NAME is not set" >&2;   exit 1; }
+    [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_DIR"    ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_DIR is not set" >&2;    exit 1; }
+    [[ -z "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME" ]] && { echo "Error: TAKEOUT_RCLONE_DRIVE_REMOTE_NAME is not set" >&2; exit 1; }
+    [[ -z "$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR"  ]] && { echo "Error: TAKEOUT_RCLONE_DRIVE_REMOTE_DIR is not set" >&2;  exit 1; }
 
     # ── 1. Merge ──────────────────────────────────────────────────────────
     echo "[INFO] Running takeout-merge in $(pwd)"
@@ -48,22 +48,17 @@ case "$subcmd" in
     # ── 4. Upload to Backblaze B2 & Google Drive in parallel ──────────────
     echo "[INFO] Uploading to Backblaze B2 and Google Drive in parallel..."
 
-    b2_json=$($TAKEOUT_B2_CLIENT file upload "$TAKEOUT_B2_BUCKET" "$encrypted" "$encrypted" 2>&1)
-    b2_exit=$?
-    echo "$b2_json"
-    if [[ $b2_exit -ne 0 ]]; then
-      echo "Error: Backblaze B2 upload failed" >&2
-      exit 1
-    fi
-    b2_sha1=$(echo "$b2_json" | awk 'BEGIN{d=0} /{/{d++} d>0{print} /}/{d--}' | jq -r '.fileInfo.large_file_sha1 // .contentSha1')
-
-    rclone copy "$encrypted" "$TAKEOUT_RCLONE_REMOTE_NAME:$TAKEOUT_RCLONE_REMOTE_DIR/" --progress &
+    rclone copy "$encrypted" "$TAKEOUT_RCLONE_B2_REMOTE_NAME:$TAKEOUT_RCLONE_B2_REMOTE_DIR/" --progress &
+    b2_pid=$!
+    rclone copy "$encrypted" "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR/" --progress &
     gdrive_pid=$!
+    wait $b2_pid     || { echo "Error: Backblaze B2 upload failed" >&2;   exit 1; }
     wait $gdrive_pid || { echo "Error: Google Drive upload failed" >&2; exit 1; }
 
     # ── 5. Verify checksums ───────────────────────────────────────────────
     echo "[INFO] Verifying checksums on remotes..."
-    gdrive_sha1=$(rclone hashsum sha1 "$TAKEOUT_RCLONE_REMOTE_NAME:$TAKEOUT_RCLONE_REMOTE_DIR/$encrypted" | awk '{print $1}')
+    b2_sha1=$(rclone    hashsum sha1 "$TAKEOUT_RCLONE_B2_REMOTE_NAME:$TAKEOUT_RCLONE_B2_REMOTE_DIR/$encrypted"       | awk '{print $1}')
+    gdrive_sha1=$(rclone hashsum sha1 "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR/$encrypted" | awk '{print $1}')
 
     echo "[INFO] Local SHA-1:        $local_sha1"
     echo "[INFO] Backblaze B2 SHA-1: $b2_sha1"

@@ -45,9 +45,7 @@ Output: `<output_name>-<YYYY-MM-DD>.tar.xz` in the current directory
 ### takeout
 All of the above, plus:
 - `rage` (age encryption CLI)
-- `rclone` (Google Drive upload)
-- Backblaze B2 CLI (path set via `TAKEOUT_B2_CLIENT`)
-- `jq` (JSON parsing for B2 response)
+- `rclone` (Backblaze B2 and Google Drive upload)
 - `sha1sum` (checksum verification)
 - `atool` (for restore extraction)
 - 1Password CLI (`op`) — used by `rage` wrapper to fetch the age key
@@ -57,10 +55,10 @@ All of the above, plus:
 | Variable | Description |
 |---|---|
 | `TAKEOUT_AGE_KEY` | Name of the age key file (or 1Password document name) |
-| `TAKEOUT_B2_CLIENT` | Path/command for the Backblaze B2 CLI |
-| `TAKEOUT_B2_BUCKET` | B2 bucket name |
-| `TAKEOUT_RCLONE_REMOTE_NAME` | rclone remote name for Google Drive |
-| `TAKEOUT_RCLONE_REMOTE_DIR` | Directory on the remote to upload to |
+| `TAKEOUT_RCLONE_B2_REMOTE_NAME` | rclone remote name for Backblaze B2 |
+| `TAKEOUT_RCLONE_B2_REMOTE_DIR` | Directory/bucket path on the B2 remote |
+| `TAKEOUT_RCLONE_DRIVE_REMOTE_NAME` | rclone remote name for Google Drive |
+| `TAKEOUT_RCLONE_DRIVE_REMOTE_DIR` | Directory on the Google Drive remote |
 | `ONEPASSWORD_SERVICE_ACCOUNT_TOKEN` | 1Password service account token (passed to `rage`) |
 
 ## Script Behavior
@@ -76,7 +74,7 @@ All of the above, plus:
 1. Runs `takeout-merge` to produce a `.tar.xz` archive
 2. Encrypts the archive with `rage` using the age key (fetched from 1Password if not local)
 3. Computes local SHA-1 of the encrypted file
-4. Uploads to Backblaze B2 (sequential) and Google Drive via rclone (background)
+4. Uploads to Backblaze B2 and Google Drive via rclone in parallel
 5. Verifies SHA-1 checksums match on both remotes before reporting success
 
 ### takeout r
