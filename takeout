@@ -10,18 +10,10 @@ subcmd=$1
 shift
 
 TAKEOUT_AGE_KEY="${TAKEOUT_AGE_KEY:-}"
-TAKEOUT_RCLONE_B2_REMOTE_NAME="${TAKEOUT_RCLONE_B2_REMOTE_NAME:-}"
-TAKEOUT_RCLONE_B2_REMOTE_BUCKET="${TAKEOUT_RCLONE_B2_REMOTE_BUCKET:-}"
-TAKEOUT_RCLONE_DRIVE_REMOTE_NAME="${TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:-}"
-TAKEOUT_RCLONE_DRIVE_REMOTE_DIR="${TAKEOUT_RCLONE_DRIVE_REMOTE_DIR:-}"
 
 case "$subcmd" in
   b)
-    [[ -z "$TAKEOUT_AGE_KEY"                 ]] && { echo "Error: TAKEOUT_AGE_KEY is not set" >&2;                 exit 1; }
-    [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_NAME"   ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_NAME is not set" >&2;   exit 1; }
-    [[ -z "$TAKEOUT_RCLONE_B2_REMOTE_BUCKET"    ]] && { echo "Error: TAKEOUT_RCLONE_B2_REMOTE_BUCKET is not set" >&2;    exit 1; }
-    [[ -z "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME" ]] && { echo "Error: TAKEOUT_RCLONE_DRIVE_REMOTE_NAME is not set" >&2; exit 1; }
-    [[ -z "$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR"  ]] && { echo "Error: TAKEOUT_RCLONE_DRIVE_REMOTE_DIR is not set" >&2;  exit 1; }
+    [[ -z "$TAKEOUT_AGE_KEY" ]] && { echo "Error: TAKEOUT_AGE_KEY is not set" >&2; exit 1; }
 
     # ── 1. Merge ──────────────────────────────────────────────────────────
     echo "[INFO] Running takeout-merge in $(pwd)"
@@ -40,38 +32,8 @@ case "$subcmd" in
     echo "[INFO] Encrypting → $encrypted"
     OP_SERVICE_ACCOUNT_TOKEN="$ONEPASSWORD_SERVICE_ACCOUNT_TOKEN" rage e "$TAKEOUT_AGE_KEY" "$archive" "$encrypted"
 
-    # ── 3. SHA-1 (local) ──────────────────────────────────────────────────
-    echo "[INFO] Calculating local sha1sum"
-    local_sha1=$(sha1sum "$encrypted" | awk '{print $1}')
-    echo "[INFO] Local SHA-1: $local_sha1"
-
-    # ── 4. Upload to Backblaze B2 & Google Drive in parallel ──────────────
-    echo "[INFO] Uploading to Backblaze B2 and Google Drive in parallel..."
-
-    rclone copy "$encrypted" "$TAKEOUT_RCLONE_B2_REMOTE_NAME:$TAKEOUT_RCLONE_B2_REMOTE_BUCKET/" --progress &
-    b2_pid=$!
-    rclone copy "$encrypted" "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR/" --progress &
-    gdrive_pid=$!
-    wait $b2_pid     || { echo "Error: Backblaze B2 upload failed" >&2;   exit 1; }
-    wait $gdrive_pid || { echo "Error: Google Drive upload failed" >&2; exit 1; }
-
-    # ── 5. Verify checksums ───────────────────────────────────────────────
-    echo "[INFO] Verifying checksums on remotes..."
-    b2_sha1=$(rclone    hashsum sha1 "$TAKEOUT_RCLONE_B2_REMOTE_NAME:$TAKEOUT_RCLONE_B2_REMOTE_BUCKET/$encrypted"       | awk '{print $1}')
-    gdrive_sha1=$(rclone hashsum sha1 "$TAKEOUT_RCLONE_DRIVE_REMOTE_NAME:$TAKEOUT_RCLONE_DRIVE_REMOTE_DIR/$encrypted" | awk '{print $1}')
-
-    echo "[INFO] Local SHA-1:        $local_sha1"
-    echo "[INFO] Backblaze B2 SHA-1: $b2_sha1"
-    echo "[INFO] Google Drive SHA-1: $gdrive_sha1"
-
-    if [[ "$local_sha1" == "$b2_sha1" && "$local_sha1" == "$gdrive_sha1" ]]; then
-      echo "[INFO] ✓ All checksums match — backup complete"
-    else
-      echo "Error: Checksum mismatch detected!" >&2
-      [[ "$local_sha1" != "$b2_sha1"     ]] && echo "Error:   B2 mismatch:     $b2_sha1" >&2
-      [[ "$local_sha1" != "$gdrive_sha1" ]] && echo "Error:   GDrive mismatch: $gdrive_sha1" >&2
-      exit 1
-    fi
+    # ── 3. Upload & verify ────────────────────────────────────────────────
+    takeout-upload "$encrypted"
     ;;
 
   r)
