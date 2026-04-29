@@ -34,6 +34,10 @@ case "$subcmd" in
 
     # ── 3. Upload & verify ────────────────────────────────────────────────
     takeout-upload "$encrypted"
+
+    # ── 4. Retention ──────────────────────────────────────────────────────
+    echo "[INFO] Running retention policy"
+    takeout-retention
     ;;
 
   r)
