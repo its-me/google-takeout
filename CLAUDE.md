@@ -4,13 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This repository contains three Bash scripts for managing Google Takeout archives:
+This repository contains four Bash scripts for managing Google Takeout archives:
 
+- **`takeout`** — full backup/restore pipeline: merge, encrypt (age), upload to Backblaze B2 and Google Drive, verify checksums, apply retention
 - **`takeout-merge`** — merges multiple Google Takeout archives into a single compressed `.tar.xz` file
-- **`takeout`** — full backup/restore pipeline: merge, encrypt (age), upload to Backblaze B2 and Google Drive, verify checksums
+- **`takeout-upload`** — uploads an encrypted archive to both remotes in parallel and verifies SHA-1 checksums
 - **`takeout-retention`** — enforces retention policy on both remotes: keeps the 10 most recent backups plus any backup created on the 1st or 16th of any month
 
 ## Usage
+
+### takeout
+
+```bash
+# Backup: merge → encrypt → upload to B2 + Google Drive → verify checksums → retention
+./takeout b
+
+# Restore: decrypt → extract
+./takeout r <encrypted_file.tar.xz.age>
+```
 
 ### takeout-merge
 
@@ -24,14 +35,10 @@ Supported archive formats: `takeout-*.zip`, `takeout-*.tgz`, `takeout-*.tar.gz`
 
 Output: `<output_name>-<YYYY-MM-DD>.tar.xz` in the current directory
 
-### takeout
+### takeout-upload
 
 ```bash
-# Backup: merge → encrypt → upload to B2 + Google Drive → verify checksums
-./takeout b
-
-# Restore: decrypt → extract
-./takeout r <encrypted_file.tar.xz.age>
+takeout-upload <encrypted_file.tar.xz.age>
 ```
 
 ### takeout-retention
@@ -59,6 +66,10 @@ All of the above, plus:
 - `atool` (for restore extraction)
 - 1Password CLI (`op`) — used by `rage` wrapper to fetch the age key
 
+### takeout-upload
+- `rclone`
+- `sha1sum`
+
 ### takeout-retention
 - `rclone`
 
@@ -68,13 +79,23 @@ All of the above, plus:
 |---|---|---|
 | `TAKEOUT_AGE_KEY` | `takeout` | Name of the age key file (or 1Password document name) |
 | `TAKEOUT_RETENTION_KEEP_LAST` | `takeout-retention` | Number of most recent backups to always keep (default: 10) |
-| `TAKEOUT_RCLONE_B2_REMOTE_NAME` | `takeout`, `takeout-retention` | rclone remote name for Backblaze B2 |
-| `TAKEOUT_RCLONE_B2_REMOTE_BUCKET` | `takeout`, `takeout-retention` | B2 bucket name |
-| `TAKEOUT_RCLONE_DRIVE_REMOTE_NAME` | `takeout`, `takeout-retention` | rclone remote name for Google Drive |
-| `TAKEOUT_RCLONE_DRIVE_REMOTE_DIR` | `takeout`, `takeout-retention` | Directory on the Google Drive remote |
+| `TAKEOUT_RCLONE_B2_REMOTE_NAME` | `takeout`, `takeout-upload`, `takeout-retention` | rclone remote name for Backblaze B2 |
+| `TAKEOUT_RCLONE_B2_REMOTE_BUCKET` | `takeout`, `takeout-upload`, `takeout-retention` | B2 bucket name |
+| `TAKEOUT_RCLONE_DRIVE_REMOTE_NAME` | `takeout`, `takeout-upload`, `takeout-retention` | rclone remote name for Google Drive |
+| `TAKEOUT_RCLONE_DRIVE_REMOTE_DIR` | `takeout`, `takeout-upload`, `takeout-retention` | Directory on the Google Drive remote |
 | `ONEPASSWORD_SERVICE_ACCOUNT_TOKEN` | `takeout` | 1Password service account token (passed to `rage`) |
 
 ## Script Behavior
+
+### takeout b
+1. Runs `takeout-merge` to produce a `.tar.xz` archive
+2. Encrypts the archive with `rage` using the age key (fetched from 1Password if not local)
+3. Calls `takeout-upload` to upload and verify
+4. Runs `takeout-retention` to apply retention policy
+
+### takeout r
+1. Decrypts the `.age` file with `rage`
+2. Extracts the resulting archive with `atool`
 
 ### takeout-merge
 1. Finds all matching archives in the current directory (sorted)
@@ -83,16 +104,10 @@ All of the above, plus:
 4. Creates a `.tar.xz` with maximum compression (`xz -9e -T0`) at lowest process priority (`nice -n 19`)
 5. Leaves the merged `./<output_name>-<YYYY-MM-DD>/` directory in place after completion; cleans up only the temp extraction dir
 
-### takeout b
-1. Runs `takeout-merge` to produce a `.tar.xz` archive
-2. Encrypts the archive with `rage` using the age key (fetched from 1Password if not local)
-3. Computes local SHA-1 of the encrypted file
-4. Uploads to Backblaze B2 and Google Drive via rclone in parallel
-5. Verifies SHA-1 checksums match on both remotes before reporting success
-
-### takeout r
-1. Decrypts the `.age` file with `rage`
-2. Extracts the resulting archive with `atool`
+### takeout-upload
+1. Computes local SHA-1 of the encrypted file
+2. Uploads to Backblaze B2 and Google Drive via rclone in parallel
+3. Verifies SHA-1 checksums match on both remotes before reporting success
 
 ### takeout-retention
 1. Lists all `*.tar.xz.age` files on the selected remote(s), sorted newest-first by filename date
