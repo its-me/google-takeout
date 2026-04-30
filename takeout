@@ -11,6 +11,25 @@ shift
 
 TAKEOUT_AGE_KEY="${TAKEOUT_AGE_KEY:-}"
 
+resolve_age_key() {
+  local key_name=$1
+  _age_key_from_op=0
+  if [[ -f "$key_name" ]]; then
+    _age_key_file="$key_name"
+    return 0
+  fi
+  echo "Key file '$key_name' not found locally, fetching from 1Password..." >&2
+  _age_key_file="./$key_name"
+  OP_SERVICE_ACCOUNT_TOKEN="$ONEPASSWORD_SERVICE_ACCOUNT_TOKEN" op document get "$key_name" --out-file "$_age_key_file"
+  _age_key_from_op=1
+}
+
+cleanup_age_key() {
+  if [[ $_age_key_from_op -eq 1 && -f "$_age_key_file" ]]; then
+    shred -u "$_age_key_file"
+  fi
+}
+
 case "$subcmd" in
   b)
     [[ -z "$TAKEOUT_AGE_KEY" ]] && { echo "Error: TAKEOUT_AGE_KEY is not set" >&2; exit 1; }
@@ -30,7 +49,10 @@ case "$subcmd" in
     # ── 2. Encrypt ────────────────────────────────────────────────────────
     encrypted="${archive}.age"
     echo "[INFO] Encrypting → $encrypted"
-    OP_SERVICE_ACCOUNT_TOKEN="$ONEPASSWORD_SERVICE_ACCOUNT_TOKEN" rage e "$TAKEOUT_AGE_KEY" "$archive" "$encrypted"
+    resolve_age_key "$TAKEOUT_AGE_KEY"
+    public_key=$(rage-keygen -y "$_age_key_file")
+    rage -r "$public_key" -e "$archive" -o "$encrypted"
+    cleanup_age_key
 
     # ── 3. Upload & verify ────────────────────────────────────────────────
     takeout-upload "$encrypted"
@@ -55,7 +77,9 @@ case "$subcmd" in
     # ── 1. Decrypt ────────────────────────────────────────────────────────
     decrypted="${encrypted_file%.age}"
     echo "[INFO] Decrypting $encrypted_file → $decrypted"
-    OP_SERVICE_ACCOUNT_TOKEN="$ONEPASSWORD_SERVICE_ACCOUNT_TOKEN" rage d "$TAKEOUT_AGE_KEY" "$encrypted_file" "$decrypted"
+    resolve_age_key "$TAKEOUT_AGE_KEY"
+    rage -i "$_age_key_file" -d "$encrypted_file" -o "$decrypted"
+    cleanup_age_key
 
     # ── 2. Extract ────────────────────────────────────────────────────────
     echo "[INFO] Extracting $decrypted"
