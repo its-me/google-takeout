@@ -1,6 +1,6 @@
 # google-takeout
 
-Bash scripts for backing up Google Takeout archives to Backblaze B2 and Google Drive.
+Bash scripts for backing up Google Takeout archives via an rclone union remote.
 
 ## Scripts
 
@@ -8,7 +8,7 @@ Bash scripts for backing up Google Takeout archives to Backblaze B2 and Google D
 |---|---|
 | `takeout` | Full backup/restore pipeline |
 | `takeout-merge` | Merge multiple Takeout archives into one compressed `.tar.xz` |
-| `takeout-upload` | Upload an encrypted archive to both remotes and verify checksums |
+| `takeout-upload` | Upload an encrypted archive and verify checksums on each upstream |
 | `takeout-retention` | Enforce retention policy on remote storage |
 
 ## How it works
@@ -16,8 +16,8 @@ Bash scripts for backing up Google Takeout archives to Backblaze B2 and Google D
 **Backup** (`takeout b`):
 1. Merges all `takeout-*.zip/tgz/tar.gz` files in the current directory into a single `.tar.xz`
 2. Encrypts it with [age](https://age-encryption.org/) (key fetched from 1Password)
-3. Uploads to Backblaze B2 and Google Drive in parallel
-4. Verifies SHA-1 checksums on both remotes
+3. Uploads to the rclone union remote (which fans out to all configured upstreams)
+4. Verifies SHA-1 checksums on each upstream independently
 5. Applies retention policy
 
 **Restore** (`takeout r <file>`):
@@ -41,10 +41,7 @@ Bash scripts for backing up Google Takeout archives to Backblaze B2 and Google D
 |---|---|---|
 | `TAKEOUT_AGE_KEY` | `takeout` | Age key file name (or 1Password document name) |
 | `ONEPASSWORD_SERVICE_ACCOUNT_TOKEN` | `takeout` | 1Password service account token |
-| `TAKEOUT_RCLONE_B2_REMOTE_NAME` | `takeout`, `takeout-upload`, `takeout-retention` | rclone remote name for Backblaze B2 |
-| `TAKEOUT_RCLONE_B2_REMOTE_BUCKET` | `takeout`, `takeout-upload`, `takeout-retention` | B2 bucket name |
-| `TAKEOUT_RCLONE_DRIVE_REMOTE_NAME` | `takeout`, `takeout-upload`, `takeout-retention` | rclone remote name for Google Drive |
-| `TAKEOUT_RCLONE_DRIVE_REMOTE_DIR` | `takeout`, `takeout-upload`, `takeout-retention` | Directory on Google Drive |
+| `TAKEOUT_RCLONE_UNION_REMOTE_NAME` | `takeout-upload`, `takeout-retention` | rclone union remote name; upstreams encode their own paths |
 | `TAKEOUT_RETENTION_KEEP_LAST` | `takeout-retention` | Number of most recent backups to keep (default: 10) |
 
 ## Usage
@@ -78,10 +75,8 @@ takeout-upload <file.tar.xz.age>
 ### takeout-retention
 
 ```bash
-takeout-retention [--dry-run|-n] [b2|drive]
+takeout-retention [--dry-run|-n]
 ```
-
-Omit the remote argument to run on both. Only the env vars for the selected remote are required.
 
 ## License
 
