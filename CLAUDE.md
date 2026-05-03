@@ -6,17 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains four Bash scripts for managing Google Takeout archives:
 
-- **`takeout`** — full backup/restore pipeline: merge, encrypt (age), upload to Backblaze B2 and Google Drive, verify checksums, apply retention
+- **`takeout`** — full backup/restore pipeline: merge, encrypt (age), upload via rclone union remote, verify checksums on each upstream, apply retention
 - **`takeout-merge`** — merges multiple Google Takeout archives into a single compressed `.tar.xz` file
-- **`takeout-upload`** — uploads an encrypted archive to both remotes in parallel and verifies SHA-1 checksums
-- **`takeout-retention`** — enforces retention policy on both remotes: keeps the 10 most recent backups plus any backup created on the 1st or 16th of any month
+- **`takeout-upload`** — uploads an encrypted archive to an rclone remote and verifies the SHA-1 checksum
+- **`takeout-retention`** — enforces retention policy on the rclone remote: keeps the 10 most recent backups plus any backup created on the 1st or 16th of any month
 
 ## Usage
 
 ### takeout
 
 ```bash
-# Backup: merge → encrypt → upload to B2 + Google Drive → verify checksums → retention
+# Backup: merge → encrypt → upload via union remote → verify checksums on each upstream → retention
 ./takeout b
 
 # Restore: decrypt → extract
@@ -44,10 +44,8 @@ takeout-upload <encrypted_file.tar.xz.age>
 ### takeout-retention
 
 ```bash
-takeout-retention [--dry-run|-n] [b2|drive]
+takeout-retention [--dry-run|-n]
 ```
-
-Omit the storage argument to run on both remotes. Only the env vars for the selected remote are required.
 
 ## Dependencies
 
@@ -61,7 +59,7 @@ Omit the storage argument to run on both remotes. Only the env vars for the sele
 ### takeout
 All of the above, plus:
 - `rage` (age encryption CLI)
-- `rclone` (Backblaze B2 and Google Drive upload)
+- `rclone` (upload via union remote)
 - `sha1sum` (checksum verification)
 - `atool` (for restore extraction)
 - 1Password CLI (`op`) — used by `rage` wrapper to fetch the age key
@@ -79,10 +77,7 @@ All of the above, plus:
 |---|---|---|
 | `TAKEOUT_AGE_KEY` | `takeout` | Name of the age key file (or 1Password document name) |
 | `TAKEOUT_RETENTION_KEEP_LAST` | `takeout-retention` | Number of most recent backups to always keep (default: 10) |
-| `TAKEOUT_RCLONE_B2_REMOTE_NAME` | `takeout`, `takeout-upload`, `takeout-retention` | rclone remote name for Backblaze B2 |
-| `TAKEOUT_RCLONE_B2_REMOTE_BUCKET` | `takeout`, `takeout-upload`, `takeout-retention` | B2 bucket name |
-| `TAKEOUT_RCLONE_DRIVE_REMOTE_NAME` | `takeout`, `takeout-upload`, `takeout-retention` | rclone remote name for Google Drive |
-| `TAKEOUT_RCLONE_DRIVE_REMOTE_DIR` | `takeout`, `takeout-upload`, `takeout-retention` | Directory on the Google Drive remote |
+| `TAKEOUT_RCLONE_UNION_REMOTE_NAME` | `takeout-upload`, `takeout-retention` | rclone union remote name; upstreams encode their own paths |
 | `ONEPASSWORD_SERVICE_ACCOUNT_TOKEN` | `takeout` | 1Password service account token (passed to `rage`) |
 
 ## Script Behavior
@@ -106,11 +101,11 @@ All of the above, plus:
 
 ### takeout-upload
 1. Computes local SHA-1 of the encrypted file
-2. Uploads to Backblaze B2 and Google Drive via rclone in parallel
-3. Verifies SHA-1 checksums match on both remotes before reporting success
+2. Uploads via rclone to `$TAKEOUT_RCLONE_UNION_REMOTE_NAME:` (the union remote fans out to all configured upstreams)
+3. Reads the union's upstreams from `rclone config show` and verifies the SHA-1 checksum against each upstream individually
 
 ### takeout-retention
-1. Lists all `*.tar.xz.age` files on the selected remote(s), sorted newest-first by filename date
+1. Lists all `*.tar.xz.age` files on the remote, sorted newest-first by filename date
 2. Keeps a file if it meets either rule:
    - It is among the 10 most recent backups (1st/16th files count toward the 10)
    - Its filename date falls on the 1st or 16th of any month
