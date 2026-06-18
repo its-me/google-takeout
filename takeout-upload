@@ -7,6 +7,7 @@ if [[ $# -eq 0 ]]; then
 fi
 
 encrypted=$1
+filename=$(basename "$encrypted")
 
 TAKEOUT_RCLONE_UNION_REMOTE_NAME="${TAKEOUT_RCLONE_UNION_REMOTE_NAME:-}"
 
@@ -19,20 +20,35 @@ echo "[INFO] Calculating local sha1sum"
 local_sha1=$(sha1sum "$encrypted" | awk '{print $1}')
 echo "[INFO] Local SHA-1: $local_sha1"
 
-# ── 2. Upload ─────────────────────────────────────────────────────────────────
-echo "[INFO] Uploading to $union..."
-rclone copy "$encrypted" "$union" --progress
-
-# ── 3. Verify checksum on each upstream ───────────────────────────────────────
-echo "[INFO] Verifying checksums on each upstream..."
-
+# ── 2. Get upstreams ──────────────────────────────────────────────────────────
 upstreams_str=$(rclone config show "$TAKEOUT_RCLONE_UNION_REMOTE_NAME" | awk -F' = ' '/^upstreams/{print $2}')
 read -ra upstreams <<< "$upstreams_str"
 
+# ── 3. Skip upload if already present on all upstreams with matching hash ─────
+already_uploaded=true
+for upstream in "${upstreams[@]}"; do
+  remote_sha1=$(rclone hashsum sha1 "${upstream%/}/$filename" 2>/dev/null | awk '{print $1}')
+  if [[ "$local_sha1" != "$remote_sha1" ]]; then
+    already_uploaded=false
+    break
+  fi
+done
+
+if $already_uploaded; then
+  echo "[INFO] ✓ $filename already exists on all upstreams with matching SHA-1 — skipping upload"
+  exit 0
+fi
+
+# ── 4. Upload ─────────────────────────────────────────────────────────────────
+echo "[INFO] Uploading to $union..."
+rclone copy "$encrypted" "$union" --progress
+
+# ── 5. Verify checksum on each upstream ───────────────────────────────────────
+echo "[INFO] Verifying checksums on each upstream..."
 echo "[INFO] Local SHA-1: $local_sha1"
 all_ok=true
 for upstream in "${upstreams[@]}"; do
-  upstream_sha1=$(rclone hashsum sha1 "${upstream%/}/$encrypted" | awk '{print $1}')
+  upstream_sha1=$(rclone hashsum sha1 "${upstream%/}/$filename" | awk '{print $1}')
   echo "[INFO] ${upstream} SHA-1: $upstream_sha1"
   if [[ "$local_sha1" != "$upstream_sha1" ]]; then
     echo "Error: Checksum mismatch on ${upstream}!" >&2
