@@ -80,4 +80,4 @@ takeout-retention [--dry-run|-n]
 
 ## License
 
-MIT
+[MIT](LICENSE)
