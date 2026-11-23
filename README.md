@@ -24,7 +24,7 @@ Bash scripts for backing up Google Takeout archives via an rclone union remote.
 1. Decrypts the `.age` file
 2. Extracts the archive
 
-**Retention policy** (`takeout-retention`): keeps a backup if it is among the 10 most recent _or_ its date falls on the 1st or 16th of any month. Everything else is deleted.
+**Retention policy** (`takeout-retention`): keeps a backup if it is among the `TAKEOUT_RETENTION_KEEP_LAST` most recent _or_ its date is within the last `TAKEOUT_RETENTION_KEEP_MONTHS` months. Everything else is deleted.
 
 ## Dependencies
 
@@ -43,6 +43,7 @@ Bash scripts for backing up Google Takeout archives via an rclone union remote.
 | `ONEPASSWORD_SERVICE_ACCOUNT_TOKEN` | `takeout` | 1Password service account token |
 | `TAKEOUT_RCLONE_UNION_REMOTE_NAME` | `takeout-upload`, `takeout-retention` | rclone union remote name; upstreams encode their own paths |
 | `TAKEOUT_RETENTION_KEEP_LAST` | `takeout-retention` | Number of most recent backups to keep (default: 10) |
+| `TAKEOUT_RETENTION_KEEP_MONTHS` | `takeout-retention` | Keep every backup dated within this many months (default: 12) |
 
 ## Usage
 

@@ -9,7 +9,7 @@ This repository contains four Bash scripts for managing Google Takeout archives:
 - **`takeout`** — full backup/restore pipeline: merge, encrypt (age), upload via rclone union remote, verify checksums on each upstream, apply retention
 - **`takeout-merge`** — merges multiple Google Takeout archives into a single compressed `.tar.xz` file
 - **`takeout-upload`** — uploads an encrypted archive to an rclone remote and verifies the SHA-1 checksum
-- **`takeout-retention`** — enforces retention policy on the rclone remote: keeps the 10 most recent backups plus any backup created on the 1st or 16th of any month
+- **`takeout-retention`** — enforces retention policy on the rclone remote: keeps the 10 most recent backups plus every backup dated within the last `TAKEOUT_RETENTION_KEEP_MONTHS` months (default: 12)
 
 ## Usage
 
@@ -77,6 +77,7 @@ All of the above, plus:
 |---|---|---|
 | `TAKEOUT_AGE_KEY` | `takeout` | Name of the age key file (or 1Password document name) |
 | `TAKEOUT_RETENTION_KEEP_LAST` | `takeout-retention` | Number of most recent backups to always keep (default: 10) |
+| `TAKEOUT_RETENTION_KEEP_MONTHS` | `takeout-retention` | Keep every backup dated within this many months (default: 12) |
 | `TAKEOUT_RCLONE_UNION_REMOTE_NAME` | `takeout-upload`, `takeout-retention` | rclone union remote name; upstreams encode their own paths |
 | `ONEPASSWORD_SERVICE_ACCOUNT_TOKEN` | `takeout` | 1Password service account token (passed to `rage`) |
 
@@ -107,6 +108,6 @@ All of the above, plus:
 ### takeout-retention
 1. Lists all `*.tar.xz.age` files on the remote, sorted newest-first by filename date
 2. Keeps a file if it meets either rule:
-   - It is among the 10 most recent backups (1st/16th files count toward the 10)
-   - Its filename date falls on the 1st or 16th of any month
+   - It is among the `TAKEOUT_RETENTION_KEEP_LAST` most recent backups (default: 10)
+   - Its filename date is on or after the cutoff: the 1st of the month `TAKEOUT_RETENTION_KEEP_MONTHS` months before the current month (default: 12)
 3. Deletes everything else; `--dry-run` prints what would be deleted without acting

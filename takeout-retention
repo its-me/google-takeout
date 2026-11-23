@@ -12,16 +12,21 @@ done
 
 TAKEOUT_RCLONE_UNION_REMOTE_NAME="${TAKEOUT_RCLONE_UNION_REMOTE_NAME:-}"
 TAKEOUT_RETENTION_KEEP_LAST="${TAKEOUT_RETENTION_KEEP_LAST:-10}"
+TAKEOUT_RETENTION_KEEP_MONTHS="${TAKEOUT_RETENTION_KEEP_MONTHS:-12}"
 
 [[ -z "$TAKEOUT_RCLONE_UNION_REMOTE_NAME" ]] && { echo "Error: TAKEOUT_RCLONE_UNION_REMOTE_NAME is not set" >&2; exit 1; }
 
+[[ "$TAKEOUT_RETENTION_KEEP_MONTHS" =~ ^[0-9]+$ ]] || { echo "Error: TAKEOUT_RETENTION_KEEP_MONTHS must be a non-negative integer" >&2; exit 1; }
+
 union="${TAKEOUT_RCLONE_UNION_REMOTE_NAME}:"
+cutoff=$(date -d "$(date +%Y-%m-01) -$((10#$TAKEOUT_RETENTION_KEEP_MONTHS)) months" +%Y-%m-%d)
 
 # Retention rules:
-#   1. Always keep files dated on the 1st or 16th of any month
-#   2. Always keep the most recent $TAKEOUT_RETENTION_KEEP_LAST files (rules 1+2 overlap — 1st/16th count toward the 10)
+#   1. Always keep files dated within the last $TAKEOUT_RETENTION_KEEP_MONTHS months (on or after $cutoff)
+#   2. Always keep the most recent $TAKEOUT_RETENTION_KEEP_LAST files (rules 1+2 overlap)
 apply_retention() {
   echo "[INFO] Processing $union"
+  echo "[INFO] Keeping backups dated on or after $cutoff ($TAKEOUT_RETENTION_KEEP_MONTHS month(s)) plus the $TAKEOUT_RETENTION_KEEP_LAST most recent"
 
   mapfile -t files < <(rclone lsf "$union" --files-only --max-depth 1 --include "*.tar.xz.age" | sort -r)
 
@@ -43,12 +48,11 @@ apply_retention() {
       continue
     fi
 
-    day="${date_str##*-}"
     keep=false
     reasons=()
 
     [[ $rank -le $TAKEOUT_RETENTION_KEEP_LAST ]] && { keep=true; reasons+=("top $TAKEOUT_RETENTION_KEEP_LAST"); }
-    [[ "$day" == "01" || "$day" == "16" ]] && { keep=true; reasons+=("day-of-month $day"); }
+    [[ ! "$date_str" < "$cutoff" ]] && { keep=true; reasons+=("within $TAKEOUT_RETENTION_KEEP_MONTHS month(s)"); }
 
     if $keep; then
       reason=$(IFS=', '; echo "${reasons[*]}")
