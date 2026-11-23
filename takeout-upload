@@ -15,20 +15,30 @@ TAKEOUT_RCLONE_UNION_REMOTE_NAME="${TAKEOUT_RCLONE_UNION_REMOTE_NAME:-}"
 
 union="${TAKEOUT_RCLONE_UNION_REMOTE_NAME}:"
 
+# rclone flags that keep stdout machine-readable even if RCLONE_PROGRESS / RCLONE_STATS
+# are set in the environment (progress output would otherwise corrupt parsed hashes).
+rclone_quiet=(--progress=false --stats=0)
+
+# Print the SHA-1 of a remote file, or nothing if it is missing/unreadable.
+remote_sha1() {
+  rclone hashsum sha1 "${rclone_quiet[@]}" "$1" 2>/dev/null \
+    | awk '$1 ~ /^[0-9a-f]{40}$/ {print $1; exit}' || true
+}
+
 # ── 1. SHA-1 (local) ──────────────────────────────────────────────────────────
 echo "[INFO] Calculating local sha1sum"
 local_sha1=$(sha1sum "$encrypted" | awk '{print $1}')
 echo "[INFO] Local SHA-1: $local_sha1"
 
 # ── 2. Get upstreams ──────────────────────────────────────────────────────────
-upstreams_str=$(rclone config show "$TAKEOUT_RCLONE_UNION_REMOTE_NAME" | awk -F' = ' '/^upstreams/{print $2}')
+upstreams_str=$(rclone config show "${rclone_quiet[@]}" "$TAKEOUT_RCLONE_UNION_REMOTE_NAME" | awk -F' = ' '/^upstreams/{print $2}')
 read -ra upstreams <<< "$upstreams_str"
+(( ${#upstreams[@]} > 0 )) || { echo "Error: no upstreams found for union remote $TAKEOUT_RCLONE_UNION_REMOTE_NAME" >&2; exit 1; }
 
 # ── 3. Skip upload if already present on all upstreams with matching hash ─────
 already_uploaded=true
 for upstream in "${upstreams[@]}"; do
-  remote_sha1=$(rclone hashsum sha1 "${upstream%/}/$filename" 2>/dev/null | awk '{print $1}')
-  if [[ "$local_sha1" != "$remote_sha1" ]]; then
+  if [[ "$local_sha1" != "$(remote_sha1 "${upstream%/}/$filename")" ]]; then
     already_uploaded=false
     break
   fi
@@ -48,8 +58,8 @@ echo "[INFO] Verifying checksums on each upstream..."
 echo "[INFO] Local SHA-1: $local_sha1"
 all_ok=true
 for upstream in "${upstreams[@]}"; do
-  upstream_sha1=$(rclone hashsum sha1 "${upstream%/}/$filename" | awk '{print $1}')
-  echo "[INFO] ${upstream} SHA-1: $upstream_sha1"
+  upstream_sha1=$(remote_sha1 "${upstream%/}/$filename")
+  echo "[INFO] ${upstream} SHA-1: ${upstream_sha1:-<missing>}"
   if [[ "$local_sha1" != "$upstream_sha1" ]]; then
     echo "Error: Checksum mismatch on ${upstream}!" >&2
     all_ok=false
